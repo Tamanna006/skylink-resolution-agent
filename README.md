@@ -2,7 +2,7 @@
 
 A customer-facing resolution agent for airline disruption, built for AIONOS Assignment 3.
 
-**Live prototype:** https://claude.ai/artifact/RT18MmsrxxbhbwHrZ5Fxh6
+**Live prototype:** (https://skylink-resolution-agent.vercel.app/?)
 **Demo video:** _(paste your Drive link here)_
 
 ---
