@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SkyLink Resolution Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF0F4; --surface:#FFFFFF; --sunk:#F5F7FA;
+  --ink:#111A28; --muted:#5C6A7B; --edge:#D5DDE7; --edge-soft:#E6EBF1;
+  --brand:#16324F; --brand-ink:#FFFFFF;
+  --exec:#0F6B57; --exec-bg:#E4F2ED;
+  --decline:#8A5210; --decline-bg:#F8EEDF;
+  --escalate:#933038; --escalate-bg:#F9E7E8;
+  --ask:#2B4A82; --ask-bg:#E6ECF7;
+  --ui:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --read:"Source Serif 4",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D131B; --surface:#141C26; --sunk:#101821;
+    --ink:#E6ECF4; --muted:#95A3B5; --edge:#26323F; --edge-soft:#1E2833;
+    --brand:#9FC4E8; --brand-ink:#0D131B;
+    --exec:#6FD3B6; --exec-bg:#12302A;
+    --decline:#E0B070; --decline-bg:#312613;
+    --escalate:#F0959C; --escalate-bg:#361A1D;
+    --ask:#A8C2F0; --ask-bg:#16243D;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D131B; --surface:#141C26; --sunk:#101821;
+  --ink:#E6ECF4; --muted:#95A3B5; --edge:#26323F; --edge-soft:#1E2833;
+  --brand:#9FC4E8; --brand-ink:#0D131B;
+  --exec:#6FD3B6; --exec-bg:#12302A;
+  --decline:#E0B070; --decline-bg:#312613;
+  --escalate:#F0959C; --escalate-bg:#361A1D;
+  --ask:#A8C2F0; --ask-bg:#16243D;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--ask);outline-offset:2px;border-radius:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.wrap{max-width:1240px;margin:0 auto;padding:18px 16px 40px}
+
+/* masthead */
+.mast{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;padding-bottom:14px;border-bottom:2px solid var(--ink)}
+.mark{display:flex;align-items:baseline;gap:10px}
+.mark h1{font-size:21px;font-weight:700;letter-spacing:-.02em;margin:0}
+.mark span{font-size:12.5px;color:var(--muted)}
+.clock{font-size:12.5px;color:var(--muted);text-align:right;line-height:1.7}
+.clock b{color:var(--ink);font-weight:600}
+
+/* persona picker */
+.desk{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 14px}
+.persona{background:var(--surface);border:1px solid var(--edge);border-radius:10px;padding:9px 13px;text-align:left;min-width:196px;flex:1 1 196px}
+.persona:hover{border-color:var(--muted)}
+.persona[aria-pressed="true"]{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.persona[aria-pressed="true"] em,.persona[aria-pressed="true"] small{color:var(--brand-ink);opacity:.82}
+.persona strong{display:block;font-size:14.5px;font-weight:600}
+.persona em{display:block;font-style:normal;font-size:12px;color:var(--muted);margin-top:1px}
+.persona small{display:block;font-size:11.5px;color:var(--muted);margin-top:4px}
+
+/* layout */
+.cols{display:grid;grid-template-columns:1.25fr .95fr;gap:16px;align-items:start}
+@media (max-width:920px){.cols{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--edge);border-radius:12px;overflow:hidden}
+.card>header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 14px;border-bottom:1px solid var(--edge-soft)}
+.card h2{margin:0;font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+.card header small{font-size:11.5px;color:var(--muted)}
+
+/* chat */
+#log{height:min(56vh,520px);overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:12px;background:var(--sunk)}
+.turn{max-width:84%;padding:10px 13px;border-radius:12px;font-family:var(--read);font-size:15.5px;line-height:1.62;white-space:pre-wrap;word-wrap:break-word}
+.turn.cust{align-self:flex-end;background:var(--brand);color:var(--brand-ink);border-bottom-right-radius:4px}
+.turn.agent{align-self:flex-start;background:var(--surface);border:1px solid var(--edge);border-bottom-left-radius:4px}
+.turn.sys{align-self:center;max-width:100%;font-family:var(--ui);font-size:12px;color:var(--muted);background:none;padding:2px 0;text-align:center}
+.who{display:block;font-family:var(--ui);font-size:10.5px;font-weight:600;letter-spacing:.04em;opacity:.65;margin-bottom:3px}
+.dots span{display:inline-block;width:5px;height:5px;margin-right:3px;border-radius:50%;background:var(--muted);animation:b 1.1s infinite}
+.dots span:nth-child(2){animation-delay:.16s}.dots span:nth-child(3){animation-delay:.32s}
+@keyframes b{0%,60%,100%{opacity:.25}30%{opacity:1}}
+
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px 0}
+.chip{background:var(--sunk);border:1px solid var(--edge);border-radius:999px;padding:5px 11px;font-size:12.5px;color:var(--muted)}
+.chip:hover{color:var(--ink);border-color:var(--muted)}
+.composer{display:flex;gap:8px;padding:12px 14px 14px}
+#msg{flex:1;background:var(--sunk);border:1px solid var(--edge);border-radius:9px;padding:10px 12px;color:var(--ink);font-family:var(--read);font-size:15px;resize:none;min-height:44px;max-height:120px}
+.send{background:var(--brand);color:var(--brand-ink);border:0;border-radius:9px;padding:0 17px;font-weight:600;font-size:14px}
+.send[disabled]{opacity:.45;cursor:not-allowed}
+
+/* right rail */
+.tabs{display:flex;gap:2px;padding:0 8px;border-bottom:1px solid var(--edge-soft)}
+.tab{background:none;border:0;border-bottom:2px solid transparent;padding:9px 10px;font-size:12.5px;color:var(--muted);font-weight:500}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--ink)}
+.pane{display:none;padding:12px 14px;max-height:min(52vh,480px);overflow-y:auto}
+.pane.on{display:block}
+.empty{color:var(--muted);font-size:13px;padding:14px 2px;font-family:var(--read)}
+
+.rec{border:1px solid var(--edge);border-left-width:3px;border-radius:8px;padding:9px 11px;margin-bottom:8px}
+.rec.execute{border-left-color:var(--exec)}
+.rec.decline{border-left-color:var(--decline)}
+.rec.escalate{border-left-color:var(--escalate)}
+.rec.ask{border-left-color:var(--ask)}
+.rec .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.rec .ttl{font-size:13.5px;font-weight:600;letter-spacing:-.01em}
+.tag{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:999px;white-space:nowrap}
+.tag.execute{background:var(--exec-bg);color:var(--exec)}
+.tag.decline{background:var(--decline-bg);color:var(--decline)}
+.tag.escalate{background:var(--escalate-bg);color:var(--escalate)}
+.tag.ask{background:var(--ask-bg);color:var(--ask)}
+.rec p{margin:5px 0 0;font-size:12.8px;color:var(--muted);line-height:1.5}
+.rec .src{margin-top:6px;font-size:11.5px;color:var(--muted);border-top:1px dashed var(--edge);padding-top:5px}
+.rec .src b{color:var(--ink);font-weight:600}
+
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:500}
+.flight{border:1px solid var(--edge);border-radius:8px;padding:9px 11px;margin-top:10px}
+.flight .rt{font-weight:600;font-size:13.5px}
+.flight .st{font-size:12.5px;margin-top:3px}
+.flight .st.bad{color:var(--escalate)}
+.flight .st.warn{color:var(--decline)}
+.flight .st.ok{color:var(--exec)}
+
+.audit{font-size:12px;border-bottom:1px solid var(--edge-soft);padding:8px 0}
+.audit:last-child{border-bottom:0}
+.audit .t{color:var(--muted);font-size:11px}
+.audit .e{font-weight:600;margin:2px 0}
+.audit .d{color:var(--muted);line-height:1.5;word-break:break-word}
+
+.bar{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--edge-soft);flex-wrap:wrap}
+.ghost{background:none;border:1px solid var(--edge);border-radius:8px;padding:6px 11px;font-size:12.5px;color:var(--muted)}
+.ghost:hover{color:var(--ink);border-color:var(--muted)}
+.note{margin-top:16px;font-size:12px;color:var(--muted);line-height:1.6;max-width:72ch}
+.policy h3{font-size:12.5px;margin:12px 0 4px;font-weight:600}
+.policy h3:first-child{margin-top:0}
+.policy p,.policy li{font-size:12.5px;color:var(--muted);margin:3px 0}
+.policy ul{margin:3px 0;padding-left:16px}
+.policy code{font-family:var(--ui);font-size:11px;color:var(--ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <div class="mark">
+      <h1>SkyLink Resolution Desk</h1>
+      <span>disruption support agent</span>
+    </div>
+    <div class="clock">
+      <div><b>Wed 23 Sep 2026</b> · simulated operating day</div>
+      <div id="caseline">Case record —</div>
+    </div>
+  </div>
+
+  <div class="desk" id="desk"></div>
+
+  <div class="cols">
+    <section class="card">
+      <header>
+        <h2 id="chatTitle">Conversation</h2>
+        <small id="chatSub">Identity verified from booking reference</small>
+      </header>
+      <div id="log"></div>
+      <div class="chips" id="chips"></div>
+      <div class="composer">
+        <textarea id="msg" rows="1" placeholder="Type as the customer…"></textarea>
+        <button class="send" id="send">Send</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" data-p="actions" aria-selected="true">Decisions</button>
+        <button class="tab" role="tab" data-p="booking" aria-selected="false">Booking</button>
+        <button class="tab" role="tab" data-p="audit" aria-selected="false">Audit trail</button>
+        <button class="tab" role="tab" data-p="policy" aria-selected="false">Policy</button>
+      </div>
+      <div class="pane on" id="p-actions"></div>
+      <div class="pane" id="p-booking"></div>
+      <div class="pane" id="p-audit"></div>
+      <div class="pane policy" id="p-policy"></div>
+      <div class="bar">
+        <button class="ghost" id="export">Export case record</button>
+        <button class="ghost" id="reset">Restart conversation</button>
+        <button class="ghost" id="theme">Switch theme</button>
+      </div>
+    </section>
+  </div>
+
+  <p class="note" id="mode"></p>
+</div>
+
+<script>
+/* ────────────────────────────────────────────────────────────────
+   1. GROUNDING DATA — transcribed verbatim from the assignment data
+   pack. The agent may use nothing outside this object.
+   ──────────────────────────────────────────────────────────────── */
+const TODAY = "Wed 23 Sep 2026";
+
+const CUSTOMERS = {
+  SK4821X: {
+    pnr:"SK4821X", name:"Priya Nair", tier:"Gold",
+    email:"priya.nair@example.com", phone:"+91-98xxxxxxx1",
+    history:"6 flights in 12 months · 1 prior complaint (delayed baggage, resolved with voucher)",
+    flights:[
+      {no:"SK-204", route:"Delhi → Goa", date:"Wed 23 Sep 2026", dep:"18:40",
+       status:"Cancelled (operational reasons)", kind:"cancelled", cause:"airline"},
+      {no:"Return", route:"Goa → Delhi", date:"Fri 25 Sep 2026", dep:"16:20",
+       status:"Unaffected", kind:"ok", cause:"none"}
+    ],
+    disruption:{type:"cancelled", flight:"SK-204", airlineCaused:true, delayHours:0}
+  },
+  TR1190B: {
+    pnr:"TR1190B", name:"Arvind Kulkarni", tier:"Silver",
+    email:"arvind.kulkarni@example.com", phone:"+91-98xxxxxxx2",
+    history:"3 flights in 12 months · no prior complaints",
+    flights:[
+      {no:"SK-118", route:"Mumbai → Bengaluru", date:"Wed 23 Sep 2026", dep:"07:10",
+       status:"Delayed 4h — new departure 11:10", kind:"delayed", cause:"airline"}
+    ],
+    disruption:{type:"delayed", flight:"SK-118", airlineCaused:true, delayHours:4}
+  },
+  WL7742: {
+    pnr:"WL7742", name:"Meher Kaur", tier:"Platinum",
+    email:"meher.kaur@example.com", phone:"+91-98xxxxxxx3",
+    history:"10 flights in 12 months · 1 prior complaint (overbooking, resolved with tier-status upgrade)",
+    flights:[
+      {no:"SK-305", route:"Delhi → Hyderabad", date:"Wed 23 Sep 2026", dep:"14:00",
+       status:"Delayed 6h — new departure 20:00", kind:"delayed", cause:"airline"}
+    ],
+    disruption:{type:"delayed", flight:"SK-305", airlineCaused:true, delayHours:6},
+    altFare:2000
+  }
+};
+
+const WAIVER_CEILING = 1500;
+
+const RULES = {
+  R1:"Cancellation Rebooking Rule — airline cancellation entitles the customer to a free rebooking on the next available flight within 24 hours, or a full refund. The customer chooses.",
+  R2a:"Delay Compensation Rule — delay under 3 hours: ₹500 meal voucher.",
+  R2b:"Delay Compensation Rule — delay over 3 hours: meal voucher + lounge access.",
+  R2c:"Delay Compensation Rule — delay over 5 hours: meal voucher + hotel accommodation covering only the delayed hours, not a full night's stay.",
+  R3:"Refund Processing Rule — refunds for airline-caused cancellations are processed in full within 7 business days, to the original payment method only.",
+  R4:"Fare Difference Rule — a voluntary move to a higher-fare flight is paid by the customer. Agents cannot waive a fare difference above ₹1,500 without supervisor approval.",
+  R5:"Loyalty Tier Rule — Gold and Platinum get priority rebooking (first access to next-available seats) but no compensation beyond standard policy.",
+  P1:"Prohibited — approving compensation beyond stated policy amounts. Escalate.",
+  P2:"Prohibited — waiving a fare difference above ₹1,500. Escalate.",
+  P3:"Prohibited — making exceptions for disruptions the airline did not cause. Escalate.",
+  P4:"Prohibited — handling threats of legal action or formal complaints. Escalate immediately.",
+  P5:"Prohibited — refunding to a payment method other than the original. Escalate."
+};
+
+/* The request types the intent layer is allowed to emit. Anything
+   outside this list is treated as unrecognised and never acted on. */
+const REQUESTS = ["status_info","rebook_free","refund","refund_alt_method","meal_voucher",
+  "lounge_access","hotel_delayed_hours","hotel_full_night","free_upgrade","extra_compensation",
+  "higher_fare_rebook","waive_fare_difference","missed_flight","legal_threat","human_agent","smalltalk"];
+
+/* ────────────────────────────────────────────────────────────────
+   2. STATE
+   ──────────────────────────────────────────────────────────────── */
+let S = null;
+const $ = s => document.querySelector(s);
+const now = () => new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+let sampler = null, samplerReady = false;
+
+function newSession(pnr){
+  const c = CUSTOMERS[pnr];
+  S = {
+    pnr, customer:c,
+    caseId:"CASE-" + pnr.slice(0,4) + "-" + String(Math.floor(Math.random()*9000)+1000),
+    turns:[], decisions:[], audit:[], escalations:0,
+    flags:{rebookChoiceOffered:false, choiceMade:null, voucher:false, lounge:false, hotel:false, escalated:false}
+  };
+  $("#caseline").textContent = "Case record " + S.caseId;
+  $("#chatTitle").textContent = c.name + " · " + c.tier + " · " + c.pnr;
+  $("#log").innerHTML = "";
+  sys("Booking reference " + c.pnr + " verified. Agent has read access to this customer's booking only.");
+  logAudit("session_opened", c.name + " (" + c.tier + "), PNR " + c.pnr + ", disruption: " + c.flights[0].status);
+  render();
+  greet();
+}
+
+/* ────────────────────────────────────────────────────────────────
+   3. INTENT LAYER — Claude reads the message and returns structured
+   requests. It never decides entitlement. A keyword parser covers
+   the same enum when sampling is unavailable.
+   ──────────────────────────────────────────────────────────────── */
+function intentPrompt(text){
+  const c = S.customer;
+  return [
+"You are the intent-extraction layer of an airline customer support agent. You do NOT decide policy and you do NOT reply to the customer. You only classify what the customer is asking for.",
+"",
+"Customer on this call: " + c.name + ", " + c.tier + " tier, PNR " + c.pnr + ".",
+"Their disruption: " + c.flights[0].no + " " + c.flights[0].route + " — " + c.flights[0].status + ".",
+"",
+"Conversation so far:",
+S.turns.slice(-6).map(t => (t.role === "customer" ? "Customer: " : "Agent: ") + t.text).join("\n") || "(none)",
+"",
+"New customer message: " + JSON.stringify(text),
+"",
+"Choose every request type that applies from this list only:",
+REQUESTS.join(", "),
+"",
+"Meanings:",
+"status_info = asking what happened / what their options are.",
+"rebook_free = wants to be put on another flight at no charge after an airline disruption.",
+"refund = wants their money back.",
+"refund_alt_method = wants the refund to a different method than they paid with (cash, another card, wallet, UPI).",
+"meal_voucher / lounge_access = asking for food or lounge.",
+"hotel_delayed_hours = asking for a hotel for the delay.",
+"hotel_full_night = explicitly wants a full night's stay rather than the delayed hours only.",
+"free_upgrade = wants a class upgrade at no cost.",
+"extra_compensation = wants cash, miles, or goodwill beyond published policy.",
+"higher_fare_rebook = wants to move to a different, more expensive flight instead of waiting.",
+"waive_fare_difference = wants the fare difference cancelled or paid by the airline.",
+"missed_flight = says they themselves missed or will miss the flight for their own reasons.",
+"legal_threat = mentions legal action, lawyers, consumer court, or a formal complaint.",
+"human_agent = asks for a person, supervisor, or manager.",
+"smalltalk = greeting, thanks, acknowledgement, or nothing actionable.",
+"",
+"Also read the emotional register.",
+"",
+'Reply with only a JSON object: {"requests":["..."],"mood":"calm|frustrated|angry|confused","summary":"one short neutral sentence"}',
+'Example: {"requests":["refund","free_upgrade"],"mood":"angry","summary":"Wants a refund and a free upgrade."}'
+  ].join("\n");
+}
+
+function keywordIntents(text){
+  const t = " " + text.toLowerCase() + " ";
+  const has = (...w) => w.some(x => t.includes(x));
+  const r = [];
+  if (has("legal","lawyer","court","sue","formal complaint","consumer forum")) r.push("legal_threat");
+  if (has("human","supervisor","manager","real person","someone else")) r.push("human_agent");
+  if (has("full night","whole night","entire night","night's stay","overnight stay")) r.push("hotel_full_night");
+  else if (has("hotel","accommodation","room","place to stay")) r.push("hotel_delayed_hours");
+  if (has("upgrade","business class","first class")) r.push("free_upgrade");
+  if (has("refund","money back","cancel my booking")) r.push("refund");
+  if (has("cash","different card","another card","upi","wallet","bank transfer")) r.push("refund_alt_method");
+  if (has("rebook","another flight","next flight","reschedule","put me on")) {
+    if (has("higher","expensive","earlier flight","different flight","instead of waiting")) r.push("higher_fare_rebook");
+    else r.push("rebook_free");
+  }
+  if (has("fare difference","extra charge","pay more","2000","₹2,000","waive")) r.push("waive_fare_difference");
+  if (has("voucher","food","meal","eat","hungry")) r.push("meal_voucher");
+  if (has("lounge")) r.push("lounge_access");
+  if (has("compensation","compensate","damages","goodwill","miles","points")) r.push("extra_compensation");
+  if (has("i missed","missed my flight","overslept","late to the airport")) r.push("missed_flight");
+  if (!r.length) r.push(has("what","why","how","options","happening","status") ? "status_info" : "smalltalk");
+  const mood = has("furious","unacceptable","ridiculous","angry","outrageous","worst","!!") ? "angry"
+             : has("frustrat","annoyed","ruined","stuck","fed up") ? "frustrated"
+             : has("confused","don't understand","not sure","what does") ? "confused" : "calm";
+  return {requests:[...new Set(r)], mood, summary:"Parsed without the language model.", source:"keyword rules"};
+}
+
+async function extractIntents(text){
+  if (sampler){
+    try{
+      const d = await sampler.json(intentPrompt(text), {modelTier:"quick", cache:false});
+      const reqs = (Array.isArray(d.requests) ? d.requests : []).filter(x => REQUESTS.includes(x));
+      if (reqs.length) return {requests:reqs, mood:d.mood || "calm", summary:d.summary || "", source:"Claude (quick)"};
+    }catch(e){
+      if (e && e.code && ["not_granted","sampling_disabled","not_declared","capability_disabled"].includes(e.code)){
+        sampler = null; setMode("The language model was declined for this view, so the agent is running on its keyword intent parser. Every policy decision is unchanged — those are computed in code.");
+      }
+    }
+  }
+  return keywordIntents(text);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   4. POLICY ENGINE — deterministic. This is the only place an
+   entitlement is decided, and every verdict carries its rule.
+   ──────────────────────────────────────────────────────────────── */
+function decide(requests, mood){
+  const c = S.customer, d = c.disruption, F = S.flags, out = [];
+  const push = o => out.push(o);
+  const delay = d.delayHours;
+
+  if (requests.includes("legal_threat"))
+    push({verdict:"escalate", title:"Legal action or formal complaint mentioned",
+      rule:"P4", detail:"Stop handling the case at desk level and hand to the specialist team with the full record. Entitlements already applied stay applied."});
+
+  if (requests.includes("missed_flight"))
+    push({verdict:"escalate", title:"Disruption not caused by the airline",
+      rule:"P3", detail:"An exception outside airline-caused disruption is above desk authority."});
+
+  if (requests.includes("human_agent"))
+    push({verdict:"escalate", title:"Customer asked for a human agent",
+      rule:"P4", detail:"Transfer with the conversation record attached."});
+
+  if (requests.includes("status_info"))
+    push({verdict:"execute", title:"Share flight status and entitlements",
+      rule:"—", detail:c.flights[0].no + " " + c.flights[0].route + ", " + c.flights[0].status + ". Reading from this customer's booking only."});
+
+  /* cancellation branch */
+  if (d.type === "cancelled"){
+    const wantsRebook = requests.includes("rebook_free") || requests.includes("higher_fare_rebook");
+    const wantsRefund = requests.includes("refund");
+
+    if (wantsRebook && !wantsRefund){
+      F.choiceMade = "rebook";
+      push({verdict:"execute", title:"Free rebooking, next available flight within 24 hours",
+        rule:"R1" + (c.tier === "Gold" || c.tier === "Platinum" ? " + R5" : ""),
+        detail:"No charge — the airline cancelled " + d.flight + "." +
+          (c.tier === "Gold" || c.tier === "Platinum" ? " " + c.tier + " priority gives first access to next-available seats." : "")});
+    } else if (wantsRefund && !wantsRebook){
+      F.choiceMade = "refund";
+      push({verdict:"execute", title:"Full refund initiated",
+        rule:"R1 + R3", detail:"Processed in full within 7 business days to the original payment method."});
+      if (requests.includes("refund_alt_method"))
+        push({verdict:"escalate", title:"Refund requested to a different payment method",
+          rule:"P5", detail:"Desk agents can only refund the original method. A change of method needs a human agent."});
+    } else if (wantsRebook && wantsRefund){
+      push({verdict:"ask", title:"Two options on the table — customer must pick one",
+        rule:"R1", detail:"Free rebooking within 24 hours, or a full refund. The rule gives the choice to the customer, so ask before acting."});
+    } else if (!F.choiceMade && !F.rebookChoiceOffered){
+      F.rebookChoiceOffered = true;
+      push({verdict:"ask", title:"Offer the cancellation choice",
+        rule:"R1", detail:"Free rebooking on the next available flight within 24 hours, or a full refund. Ask which they want — the rule does not let the agent choose."});
+    }
+
+    if (requests.includes("meal_voucher") || requests.includes("lounge_access") || requests.includes("hotel_delayed_hours"))
+      push({verdict:"decline", title:"Delay compensation does not apply to a cancellation",
+        rule:"R1 vs R2", detail:"Vouchers, lounge access and hotel cover sit under the delay rule. A cancellation is covered by rebooking or refund instead."});
+  }
+
+  /* delay branch */
+  if (d.type === "delayed"){
+    if (requests.some(r => ["status_info","meal_voucher","lounge_access","hotel_delayed_hours","extra_compensation","rebook_free"].includes(r))){
+      if (!F.voucher){
+        F.voucher = true;
+        push({verdict:"execute", title:"₹500 meal voucher issued",
+          rule:delay > 5 ? "R2c" : delay > 3 ? "R2b" : "R2a",
+          detail:"Delay of " + delay + " hours on " + d.flight + "."});
+      }
+      if (delay > 3 && !F.lounge){
+        F.lounge = true;
+        push({verdict:"execute", title:"Lounge access granted", rule:"R2b",
+          detail:"The delay is over 3 hours, so lounge access applies alongside the voucher."});
+      }
+      if (delay > 5 && !F.hotel){
+        F.hotel = true;
+        push({verdict:"execute", title:"Hotel arranged for the delayed hours", rule:"R2c",
+          detail:"Over 5 hours' delay. Cover is for the delayed hours only, not a full night."});
+      }
+    }
+
+    if (requests.includes("hotel_delayed_hours") && delay <= 5)
+      push({verdict:"decline", title:"Hotel accommodation not available at this delay length",
+        rule:"R2c", detail:"Hotel cover starts above 5 hours. This delay is " + delay + " hours, which qualifies for the meal voucher and lounge access."});
+
+    if (requests.includes("hotel_full_night"))
+      push({verdict:"escalate", title:"Full night's hotel stay requested",
+        rule:"R2c + P1", detail:"Policy covers the delayed hours only. Extending to a full night is compensation beyond policy and needs a supervisor."});
+
+    if (requests.includes("higher_fare_rebook")){
+      const fd = c.altFare || 0;
+      push({verdict:"execute", title:"Move to the higher-fare flight, fare difference payable",
+        rule:"R4" + (c.tier === "Platinum" || c.tier === "Gold" ? " + R5" : ""),
+        detail:"This is a voluntary change, not an airline-caused rebooking, so the ₹" + fd.toLocaleString("en-IN") +
+          " difference is the customer's to pay. " + c.tier + " priority still applies to seat access."});
+    }
+
+    if (requests.includes("waive_fare_difference")){
+      const fd = c.altFare || 0;
+      if (fd > WAIVER_CEILING)
+        push({verdict:"escalate", title:"Fare-difference waiver of ₹" + fd.toLocaleString("en-IN") + " requested",
+          rule:"R4 + P2", detail:"Above the ₹1,500 desk ceiling. Supervisor approval required before anything is promised."});
+      else
+        push({verdict:"execute", title:"Fare difference waived", rule:"R4",
+          detail:"₹" + fd.toLocaleString("en-IN") + " is within the ₹1,500 desk ceiling."});
+    }
+  }
+
+  /* cross-cutting asks */
+  if (requests.includes("free_upgrade"))
+    push({verdict:"escalate", title:"Free cabin upgrade requested",
+      rule:"P1 + R5", detail:"Tier status gives priority rebooking, not extra compensation. A goodwill upgrade is beyond desk authority."});
+
+  if (requests.includes("extra_compensation") && !out.some(o => o.verdict === "escalate"))
+    push({verdict:"decline", title:"Compensation beyond published policy",
+      rule:"P1", detail:"Desk authority covers the stated entitlements only. If the customer wants more, it goes to a supervisor."});
+
+  if (requests.includes("refund_alt_method") && !out.some(o => o.rule === "P5"))
+    push({verdict:"escalate", title:"Refund to a non-original payment method",
+      rule:"P5", detail:"Only the original payment method can be used at desk level."});
+
+  if (!out.length)
+    push({verdict:"execute", title:"Acknowledge and hold the conversation open",
+      rule:"—", detail:"Nothing actionable in this message. Do not invent an entitlement."});
+
+  return out;
+}
+
+/* ────────────────────────────────────────────────────────────────
+   5. REPLY LAYER — Claude writes the wording. It is given the
+   verdicts and told it may not add, soften or invent any of them.
+   ──────────────────────────────────────────────────────────────── */
+function replyPrompt(text, verdicts, mood){
+  const c = S.customer;
+  return [
+"You are a customer support agent for SkyLink Airways, writing the next reply in a live chat. Today is " + TODAY + ".",
+"",
+"Customer: " + c.name + " (" + c.tier + " tier, PNR " + c.pnr + "). Their flight: " + c.flights[0].no + " " + c.flights[0].route + " — " + c.flights[0].status + ".",
+"Their current mood reads as: " + mood + ".",
+"",
+"Their message: " + JSON.stringify(text),
+"",
+"A policy engine has already decided the outcome. These are the ONLY outcomes you may communicate:",
+verdicts.map((v,i) => (i+1) + ". [" + v.verdict.toUpperCase() + "] " + v.title + " — " + v.detail).join("\n"),
+"",
+"Rules for your reply:",
+"- Say exactly what the engine decided. Never add an entitlement, amount, flight number, date or goodwill gesture that is not listed above.",
+"- EXECUTE items are already done: state them in the past tense.",
+"- DECLINE items: say plainly what policy allows instead, without apologising twice or being defensive.",
+"- ESCALATE items: say you are passing it to the specialist team who will contact them directly, and do not predict what that team will decide.",
+"- ASK items: ask that question directly and stop there.",
+"- If the customer is angry, open by acknowledging it once, briefly, then move to substance. No grovelling, no filler.",
+"- Two to five short sentences. Plain conversational English. No bullet points, no headings, no sign-off, no emoji.",
+"",
+"Write only the reply text."
+  ].join("\n");
+}
+
+function templateReply(verdicts, mood){
+  const parts = [];
+  if (mood === "angry" || mood === "frustrated") parts.push("I understand why this is frustrating, and I'll sort out what I can right now.");
+  verdicts.forEach(v => {
+    if (v.verdict === "execute") parts.push(v.title + ". " + v.detail);
+    else if (v.verdict === "decline") parts.push(v.title + " — " + v.detail);
+    else if (v.verdict === "escalate") parts.push(v.title + ": I'm escalating this to our specialist support team now, and they will contact you directly.");
+    else parts.push(v.detail);
+  });
+  return parts.join(" ");
+}
+
+/* ────────────────────────────────────────────────────────────────
+   6. TURN LOOP
+   ──────────────────────────────────────────────────────────────── */
+let busy = false;
+async function handle(text){
+  if (busy || !text.trim()) return;
+  busy = true; $("#send").disabled = true;
+
+  addTurn("customer", text);
+  logAudit("customer_message", text);
+
+  const bubble = thinking();
+  const intents = await extractIntents(text);
+  logAudit("intent_extracted", "requests: " + intents.requests.join(", ") + " · mood: " + intents.mood + " · source: " + intents.source);
+
+  const verdicts = decide(intents.requests, intents.mood);
+  verdicts.forEach(v => {
+    const rec = {...v, time:now(), id:"A" + String(S.decisions.length + 1).padStart(3,"0")};
+    if (v.verdict === "escalate"){ S.escalations++; rec.ticket = "ESC-" + S.caseId.split("-")[2] + "-" + S.escalations; S.flags.escalated = true; }
+    S.decisions.push(rec);
+    logAudit("policy_decision", "[" + rec.verdict + "] " + rec.title + " · rule " + rec.rule + (rec.ticket ? " · ticket " + rec.ticket : ""));
+  });
+  render();
+
+  let reply = "";
+  if (sampler){
+    try{
+      const r = await sampler(replyPrompt(text, verdicts, intents.mood), {
+        modelTier:"quick", cache:false,
+        onText:({text:t}) => { bubble.querySelector(".body").textContent = t; scroll(); }
+      });
+      reply = r.text;
+    }catch(e){
+      reply = (e && e.text) || templateReply(verdicts, intents.mood);
+      if (e && ["not_granted","sampling_disabled","not_declared","capability_disabled"].includes(e.code)){
+        sampler = null; setMode("The language model was declined for this view, so replies are composed from the policy engine's own wording. The decisions are identical either way.");
+      }
+    }
+  } else {
+    reply = templateReply(verdicts, intents.mood);
+  }
+
+  bubble.remove();
+  addTurn("agent", reply);
+  logAudit("agent_reply", reply);
+  render();
+  busy = false; $("#send").disabled = false; $("#msg").focus();
+}
+
+function greet(){
+  const c = S.customer, f = c.flights[0];
+  let t = "Hello " + c.name.split(" ")[0] + ", I can see your booking " + c.pnr + ". ";
+  t += f.kind === "cancelled"
+    ? "Flight " + f.no + " " + f.route + " on " + f.date + " has been cancelled for operational reasons, and I'm sorry for the disruption."
+    : "Flight " + f.no + " " + f.route + " is showing " + f.status.toLowerCase() + ", and I'm sorry for the wait.";
+  t += " How can I help?";
+  addTurn("agent", t);
+  logAudit("agent_reply", t);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   7. RENDERING
+   ──────────────────────────────────────────────────────────────── */
+function addTurn(role, text){
+  S.turns.push({role, text, time:now()});
+  const d = document.createElement("div");
+  d.className = "turn " + (role === "customer" ? "cust" : "agent");
+  d.innerHTML = '<span class="who">' + (role === "customer" ? esc(S.customer.name) : "Agent") + " · " + now() + '</span><span class="body"></span>';
+  d.querySelector(".body").textContent = text;
+  $("#log").appendChild(d); scroll();
+}
+function sys(t){
+  const d = document.createElement("div"); d.className = "turn sys"; d.textContent = t;
+  $("#log").appendChild(d); scroll();
+}
+function thinking(){
+  const d = document.createElement("div");
+  d.className = "turn agent";
+  d.innerHTML = '<span class="who">Agent</span><span class="body dots"><span></span><span></span><span></span></span>';
+  $("#log").appendChild(d); scroll(); return d;
+}
+function scroll(){ const l = $("#log"); l.scrollTop = l.scrollHeight; }
+function logAudit(event, detail){ S.audit.push({time:now(), event, detail}); }
+
+function render(){
+  const A = $("#p-actions");
+  A.innerHTML = S.decisions.length ? "" : '<p class="empty">No decisions yet. Every entitlement the agent grants, declines or escalates will appear here with the rule it came from.</p>';
+  [...S.decisions].reverse().forEach(d => {
+    const label = {execute:"Executed", decline:"Declined", escalate:"Escalated", ask:"Awaiting answer"}[d.verdict];
+    const el = document.createElement("div");
+    el.className = "rec " + d.verdict;
+    el.innerHTML = '<div class="top"><span class="ttl">' + esc(d.title) + '</span><span class="tag ' + d.verdict + '">' + label + '</span></div>' +
+      '<p>' + esc(d.detail) + '</p>' +
+      '<div class="src"><b>' + esc(d.rule) + '</b> · ' + d.id + ' · ' + d.time + (d.ticket ? ' · ticket ' + esc(d.ticket) : '') + '</div>';
+    A.appendChild(el);
+  });
+
+  const c = S.customer;
+  $("#p-booking").innerHTML =
+    '<dl class="kv"><dt>Name</dt><dd>' + esc(c.name) + '</dd><dt>Tier</dt><dd>' + c.tier + '</dd>' +
+    '<dt>PNR</dt><dd>' + c.pnr + '</dd><dt>Email</dt><dd>' + esc(c.email) + '</dd>' +
+    '<dt>Phone</dt><dd>' + esc(c.phone) + '</dd><dt>Case</dt><dd>' + S.caseId + '</dd></dl>' +
+    '<p style="font-size:12.5px;color:var(--muted);margin:10px 0 0">' + esc(c.history) + '</p>' +
+    c.flights.map(f => '<div class="flight"><div class="rt">' + f.no + " · " + esc(f.route) + '</div>' +
+      '<div class="st ' + (f.kind === "cancelled" ? "bad" : f.kind === "delayed" ? "warn" : "ok") + '">' + esc(f.status) + '</div>' +
+      '<div class="st" style="color:var(--muted)">' + f.date + " · scheduled " + f.dep + '</div></div>').join("");
+
+  $("#p-audit").innerHTML = S.audit.length ? [...S.audit].reverse().map(a =>
+    '<div class="audit"><div class="t">' + a.time + '</div><div class="e">' + a.event + '</div><div class="d">' + esc(a.detail) + '</div></div>').join("") : "";
+}
+
+$("#p-policy").innerHTML =
+  "<h3>Service rules</h3><ul>" + ["R1","R2a","R2b","R2c","R3","R4","R5"].map(k => "<li><code>" + k + "</code> " + RULES[k] + "</li>").join("") +
+  "</ul><h3>Escalate, never decide</h3><ul>" + ["P1","P2","P3","P4","P5"].map(k => "<li><code>" + k + "</code> " + RULES[k] + "</li>").join("") +
+  "</ul><h3>Sources</h3><p>Customer profiles, booking data, service rules and the allowed/prohibited list are transcribed from the assignment data pack. The three sample conversations were used for tone only and are not treated as fact or policy. Nothing else is available to the agent.</p>";
+
+/* ────────────────────────────────────────────────────────────────
+   8. SCENARIO SHORTCUTS — the exact asks from the three scenarios
+   ──────────────────────────────────────────────────────────────── */
+const SCRIPTS = {
+  SK4821X:[
+    "My flight to Goa tonight has been cancelled. What happens now?",
+    "I'll take the refund.",
+    "Honestly I'm furious. I want the full refund in cash and a free business class upgrade on my return flight for the trouble.",
+    "If you can't do that I'm going to file a formal complaint and speak to a lawyer."
+  ],
+  TR1190B:[
+    "My flight is delayed 4 hours and I'm going to miss a client meeting in Bengaluru.",
+    "Can you put me in a hotel since it's been such a long delay?",
+    "So what do I actually get for this?"
+  ],
+  WL7742:[
+    "SK-305 is delayed six hours. What are you doing about it?",
+    "I want a full night at a hotel, not just the delayed hours.",
+    "Then move me to the other flight instead of waiting — and I'm not paying the ₹2,000 difference."
+  ]
+};
+
+function chips(){
+  const box = $("#chips"); box.innerHTML = "";
+  SCRIPTS[S.pnr].forEach(t => {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = t.length > 52 ? t.slice(0,50) + "…" : t;
+    b.title = t;
+    b.onclick = () => handle(t);
+    box.appendChild(b);
+  });
+}
+
+/* ────────────────────────────────────────────────────────────────
+   9. WIRING
+   ──────────────────────────────────────────────────────────────── */
+$("#desk").innerHTML = Object.values(CUSTOMERS).map(c =>
+  '<button class="persona" data-pnr="' + c.pnr + '" aria-pressed="false"><strong>' + c.name + '</strong>' +
+  '<em>' + c.tier + " · " + c.pnr + '</em><small>' + esc(c.flights[0].status) + '</small></button>').join("");
+
+document.querySelectorAll(".persona").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".persona").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+  newSession(b.dataset.pnr); chips();
+});
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", String(x === t)));
+  document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.id === "p-" + t.dataset.p));
+});
+
+$("#send").onclick = () => { const v = $("#msg").value; $("#msg").value = ""; handle(v); };
+$("#msg").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); $("#send").click(); }
+});
+$("#msg").addEventListener("input", e => { e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px"; });
+
+$("#reset").onclick = () => { newSession(S.pnr); };
+$("#theme").onclick = () => {
+  const cur = document.documentElement.getAttribute("data-theme");
+  const dark = cur ? cur === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark ? "light" : "dark");
+};
+
+$("#export").onclick = async () => {
+  const record = {
+    caseId:S.caseId, generatedAt:new Date().toISOString(), operatingDay:TODAY,
+    customer:{name:S.customer.name, pnr:S.customer.pnr, tier:S.customer.tier},
+    disruption:S.customer.flights[0],
+    conversation:S.turns, decisions:S.decisions, auditTrail:S.audit
+  };
+  const data = JSON.stringify(record, null, 2);
+  const filename = S.caseId + ".json";
+  try{
+    const dl = await claude.use("downloads");
+    if (dl){ await dl.save({filename, data}); return; }
+  }catch(e){}
+  const blob = new Blob([data], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+function setMode(t){ $("#mode").textContent = t; }
+setMode("Prototype on the assignment's simulated data. The agent reads intent with a language model, decides every entitlement in a deterministic policy engine, and escalates anything above desk authority. Connecting the model…");
+
+/* boot */
+document.querySelector(".persona").click();
+(async () => {
+  try{
+    sampler = await claude.use("sample");
+  }catch(e){ sampler = null; }
+  samplerReady = true;
+  setMode(sampler
+    ? "Prototype on the assignment's simulated data. The agent reads intent with Claude, decides every entitlement in a deterministic policy engine, and escalates anything above desk authority. Reply wording is generated; the decisions in the right-hand panel are not."
+    : "Prototype on the assignment's simulated data. The language model is unavailable in this view, so intent is parsed by keyword rules and replies are composed from the policy engine. The decisions are identical either way.");
+})();
+</script>
+</body>
+</html>
