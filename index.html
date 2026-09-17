@@ -269,7 +269,7 @@ let S = null;
 const $ = s => document.querySelector(s);
 const now = () => new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit", second:"2-digit"});
 const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-let sampler = null, samplerReady = false;
+let samplerReady = false;
 
 function newSession(pnr){
   const c = CUSTOMERS[pnr];
@@ -289,50 +289,10 @@ function newSession(pnr){
 }
 
 /* ────────────────────────────────────────────────────────────────
-   3. INTENT LAYER — Claude reads the message and returns structured
-   requests. It never decides entitlement. A keyword parser covers
-   the same enum when sampling is unavailable.
-   ──────────────────────────────────────────────────────────────── */
-function intentPrompt(text){
-  const c = S.customer;
-  return [
-"You are the intent-extraction layer of an airline customer support agent. You do NOT decide policy and you do NOT reply to the customer. You only classify what the customer is asking for.",
-"",
-"Customer on this call: " + c.name + ", " + c.tier + " tier, PNR " + c.pnr + ".",
-"Their disruption: " + c.flights[0].no + " " + c.flights[0].route + " — " + c.flights[0].status + ".",
-"",
-"Conversation so far:",
-S.turns.slice(-6).map(t => (t.role === "customer" ? "Customer: " : "Agent: ") + t.text).join("\n") || "(none)",
-"",
-"New customer message: " + JSON.stringify(text),
-"",
-"Choose every request type that applies from this list only:",
-REQUESTS.join(", "),
-"",
-"Meanings:",
-"status_info = asking what happened / what their options are.",
-"rebook_free = wants to be put on another flight at no charge after an airline disruption.",
-"refund = wants their money back.",
-"refund_alt_method = wants the refund to a different method than they paid with (cash, another card, wallet, UPI).",
-"meal_voucher / lounge_access = asking for food or lounge.",
-"hotel_delayed_hours = asking for a hotel for the delay.",
-"hotel_full_night = explicitly wants a full night's stay rather than the delayed hours only.",
-"free_upgrade = wants a class upgrade at no cost.",
-"extra_compensation = wants cash, miles, or goodwill beyond published policy.",
-"higher_fare_rebook = wants to move to a different, more expensive flight instead of waiting.",
-"waive_fare_difference = wants the fare difference cancelled or paid by the airline.",
-"missed_flight = says they themselves missed or will miss the flight for their own reasons.",
-"legal_threat = mentions legal action, lawyers, consumer court, or a formal complaint.",
-"human_agent = asks for a person, supervisor, or manager.",
-"smalltalk = greeting, thanks, acknowledgement, or nothing actionable.",
-"",
-"Also read the emotional register.",
-"",
-'Reply with only a JSON object: {"requests":["..."],"mood":"calm|frustrated|angry|confused","summary":"one short neutral sentence"}',
-'Example: {"requests":["refund","free_upgrade"],"mood":"angry","summary":"Wants a refund and a free upgrade."}'
-  ].join("\n");
-}
-
+    3. INTENT LAYER — maps customer messages to structured request
+    types. It never decides entitlement. The policy engine handles
+    all entitlement and escalation decisions.
+    ──────────────────────────────────────────────────────────────── */
 function keywordIntents(text){
   const t = " " + text.toLowerCase() + " ";
   const has = (...w) => w.some(x => t.includes(x));
@@ -361,19 +321,9 @@ function keywordIntents(text){
 }
 
 async function extractIntents(text){
-  if (sampler){
-    try{
-      const d = await sampler.json(intentPrompt(text), {modelTier:"quick", cache:false});
-      const reqs = (Array.isArray(d.requests) ? d.requests : []).filter(x => REQUESTS.includes(x));
-      if (reqs.length) return {requests:reqs, mood:d.mood || "calm", summary:d.summary || "", source:"Claude (quick)"};
-    }catch(e){
-      if (e && e.code && ["not_granted","sampling_disabled","not_declared","capability_disabled"].includes(e.code)){
-        sampler = null; setMode("The language model was declined for this view, so the agent is running on its keyword intent parser. Every policy decision is unchanged — those are computed in code.");
-      }
-    }
-  }
   return keywordIntents(text);
 }
+
 
 /* ────────────────────────────────────────────────────────────────
    4. POLICY ENGINE — deterministic. This is the only place an
@@ -501,35 +451,9 @@ function decide(requests, mood){
 }
 
 /* ────────────────────────────────────────────────────────────────
-   5. REPLY LAYER — Claude writes the wording. It is given the
-   verdicts and told it may not add, soften or invent any of them.
-   ──────────────────────────────────────────────────────────────── */
-function replyPrompt(text, verdicts, mood){
-  const c = S.customer;
-  return [
-"You are a customer support agent for SkyLink Airways, writing the next reply in a live chat. Today is " + TODAY + ".",
-"",
-"Customer: " + c.name + " (" + c.tier + " tier, PNR " + c.pnr + "). Their flight: " + c.flights[0].no + " " + c.flights[0].route + " — " + c.flights[0].status + ".",
-"Their current mood reads as: " + mood + ".",
-"",
-"Their message: " + JSON.stringify(text),
-"",
-"A policy engine has already decided the outcome. These are the ONLY outcomes you may communicate:",
-verdicts.map((v,i) => (i+1) + ". [" + v.verdict.toUpperCase() + "] " + v.title + " — " + v.detail).join("\n"),
-"",
-"Rules for your reply:",
-"- Say exactly what the engine decided. Never add an entitlement, amount, flight number, date or goodwill gesture that is not listed above.",
-"- EXECUTE items are already done: state them in the past tense.",
-"- DECLINE items: say plainly what policy allows instead, without apologising twice or being defensive.",
-"- ESCALATE items: say you are passing it to the specialist team who will contact them directly, and do not predict what that team will decide.",
-"- ASK items: ask that question directly and stop there.",
-"- If the customer is angry, open by acknowledging it once, briefly, then move to substance. No grovelling, no filler.",
-"- Two to five short sentences. Plain conversational English. No bullet points, no headings, no sign-off, no emoji.",
-"",
-"Write only the reply text."
-  ].join("\n");
-}
-
+    5. REPLY LAYER — composes the response from the policy engine's
+    verdicts. It cannot add or invent entitlements.
+    ──────────────────────────────────────────────────────────────── */
 function templateReply(verdicts, mood){
   const parts = [];
   if (mood === "angry" || mood === "frustrated") parts.push("I understand why this is frustrating, and I'll sort out what I can right now.");
@@ -566,23 +490,7 @@ async function handle(text){
   });
   render();
 
-  let reply = "";
-  if (sampler){
-    try{
-      const r = await sampler(replyPrompt(text, verdicts, intents.mood), {
-        modelTier:"quick", cache:false,
-        onText:({text:t}) => { bubble.querySelector(".body").textContent = t; scroll(); }
-      });
-      reply = r.text;
-    }catch(e){
-      reply = (e && e.text) || templateReply(verdicts, intents.mood);
-      if (e && ["not_granted","sampling_disabled","not_declared","capability_disabled"].includes(e.code)){
-        sampler = null; setMode("The language model was declined for this view, so replies are composed from the policy engine's own wording. The decisions are identical either way.");
-      }
-    }
-  } else {
-    reply = templateReply(verdicts, intents.mood);
-  }
+  let reply = templateReply(verdicts, intents.mood);
 
   bubble.remove();
   addTurn("agent", reply);
@@ -731,10 +639,6 @@ $("#export").onclick = async () => {
   };
   const data = JSON.stringify(record, null, 2);
   const filename = S.caseId + ".json";
-  try{
-    const dl = await claude.use("downloads");
-    if (dl){ await dl.save({filename, data}); return; }
-  }catch(e){}
   const blob = new Blob([data], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob); a.download = filename; a.click();
@@ -742,19 +646,11 @@ $("#export").onclick = async () => {
 };
 
 function setMode(t){ $("#mode").textContent = t; }
-setMode("Prototype on the assignment's simulated data. The agent reads intent with a language model, decides every entitlement in a deterministic policy engine, and escalates anything above desk authority. Connecting the model…");
+setMode("Prototype on the assignment's simulated data. The agent detects customer intent, evaluates entitlements through a deterministic policy engine, and escalates anything above desk authority.");
 
 /* boot */
 document.querySelector(".persona").click();
-(async () => {
-  try{
-    sampler = await claude.use("sample");
-  }catch(e){ sampler = null; }
-  samplerReady = true;
-  setMode(sampler
-    ? "Prototype on the assignment's simulated data. The agent reads intent with Claude, decides every entitlement in a deterministic policy engine, and escalates anything above desk authority. Reply wording is generated; the decisions in the right-hand panel are not."
-    : "Prototype on the assignment's simulated data. The language model is unavailable in this view, so intent is parsed by keyword rules and replies are composed from the policy engine. The decisions are identical either way.");
-})();
+samplerReady = true;
 </script>
 </body>
 </html>
