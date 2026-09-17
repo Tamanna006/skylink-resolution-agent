@@ -1,174 +1,396 @@
 # SkyLink Resolution Desk
 
-A customer-facing resolution agent for airline disruption, built for AIONOS Assignment 3.
+A customer-facing airline disruption resolution agent developed for **AIONOS Agentic AI Factory – Assignment 3**.
 
-**Live prototype:** (https://skylink-resolution-agent.vercel.app/?)
-**Demo video:** _(paste your Drive link here)_
+The prototype helps customers resolve common flight disruption situations such as cancellations, delays, refunds, rebooking, compensation, hotel requests and escalation cases.
+
+**Live Prototype:** https://skylink-resolution-agent.vercel.app/
+
+**GitHub Repository:** https://github.com/Tamanna006/skylink-resolution-agent
+
+**Demo Video:** Paste your Google Drive link here
 
 ---
 
-## Run it
+## What the Agent Does
 
-No build step, no keys, no dependencies.
+SkyLink Resolution Desk is designed around a simple principle:
+
+> **The response layer communicates the decision; it does not decide the entitlement.**
+
+The agent:
+
+- Understands the customer's request
+- Identifies the relevant customer and booking context
+- Checks the supplied airline policies
+- Determines whether an action should be executed, declined, escalated or clarified
+- Explains the decision to the customer
+- Handles multiple requests in the same message
+- Maintains the conversation and action history
+- Records escalation cases
+- Provides an exportable case record
+
+The goal is to make the resolution process transparent and policy-driven instead of allowing the response layer to invent compensation or exceptions.
+
+---
+
+## Running the Prototype
+
+The final prototype is a standalone web application.
+
+### Requirements
+
+- Modern web browser
+- No API key
+- No external database
+- No build process
+- No package installation
+
+### Option 1 — Open Directly
+
+Open `index.html` in a browser.
+
+### Option 2 — Run Using a Local Server
 
 ```bash
-git clone <this-repo>
-cd <this-repo>
+git clone https://github.com/Tamanna006/skylink-resolution-agent.git
+cd skylink-resolution-agent
 python3 -m http.server 8000
-# open http://localhost:8000
-```
 
-Or just open `index.html` in a browser. The whole agent is one self-contained file.
+Architecture
 
-When it runs on the hosted link it uses Claude for two things per turn (reading intent, writing the reply). When it runs locally or the model is unavailable, it falls back to a keyword intent parser and composes replies from the policy engine's own wording. **The decisions are identical in both modes** — that is the point of the design.
+The final runtime is implemented as a self-contained JavaScript application.
 
----
+                  Customer Message
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │  Interface / Chat   │
+              │  Customer Context   │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Intent Detection    │
+              │ Structured Request  │
+              │ Types / Mood        │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Deterministic       │
+              │ Policy Engine       │
+              │                     │
+              │ Customer + Booking │
+              │ + Request + Rules   │
+              └──────────┬──────────┘
+                         │
+              ┌──────────┼───────────┐
+              ▼          ▼           ▼
+           Execute     Decline    Escalate
+              │          │           │
+              └──────────┼───────────┘
+                         ▼
+              ┌─────────────────────┐
+              │ Response Layer      │
+              │ Customer-facing     │
+              │ explanation         │
+              └──────────┬──────────┘
+                         │
+                         ▼
+              ┌─────────────────────┐
+              │ Audit Trail & Case  │
+              │ Record / Export     │
+              └─────────────────────┘
+Design Principle
 
-## The one-line claim
+The policy engine is the authority for:
 
-> The model writes sentences. It never writes entitlements.
+Eligibility
+Compensation
+Refund conditions
+Rebooking conditions
+Fare-difference rules
+Escalation requirements
+Prohibited actions
 
-Every amount, eligibility check, rule citation and escalation is computed in JavaScript from the data pack. The language model classifies intent into a fixed enum, and then writes wording it is forbidden to add to.
+The response layer communicates the resulting decision to the customer.
 
----
+Runtime Flow
 
-## Architecture
+Each customer message follows this process:
 
-```
-┌───────────────────────────────────────────────┐
-│ Interface — chat, decision rail, audit, export│
-└───────────────────────┬───────────────────────┘
-                        ▼
-┌───────────────────────────────────────────────┐
-│ Intent layer  ·  Claude (quick tier)          │
-│ message + last 6 turns → {requests[], mood}   │
-│ requests filtered against a 16-value enum     │
-│ fallback: keyword parser over the same enum   │
-└───────────────────────┬───────────────────────┘
-                        ▼
-┌───────────────────────────────────────────────┐
-│ Policy engine  ·  deterministic code          │
-│ f(requests, booking, session flags) →         │
-│ [{verdict, title, detail, rule}]              │
-│ verdict ∈ execute | decline | escalate | ask  │
-└───────────────────────┬───────────────────────┘
-                        ▼
-┌───────────────────────────────────────────────┐
-│ Action + escalation                           │
-│ applies each entitlement once, opens ESC      │
-│ tickets, tracks the choice the customer owes  │
-└───────────────────────┬───────────────────────┘
-                        ▼
-┌───────────────────────────────────────────────┐
-│ Reply layer  ·  Claude                        │
-│ receives the verdicts as the ONLY permitted   │
-│ content; may not add, soften or invent one    │
-└───────────────────────────────────────────────┘
+Customer message is received.
+The request is mapped to one or more structured intent types.
+Customer and booking information is loaded from the grounding data.
+The policy engine evaluates the request against the applicable rules.
+A verdict is produced:
+execute
+decline
+escalate
+ask
+The corresponding action or escalation is recorded.
+A customer-facing response is generated from the decision.
+The conversation and audit trail are updated.
 
-Grounding store (read by all, written by none):
-  3 customer profiles · 4 booking rows · R1–R5 · P1–P5 · ₹1,500 ceiling
-Case record: turns, verdicts, rule ids, tickets, timestamps → JSON export
-```
+This separation prevents customer-facing wording from changing the underlying entitlement.
 
-The decision rail on the right of the screen fills in **before** any reply text is generated, so you can see that the sentence follows the verdict rather than the other way round.
+Grounding Data
 
----
+The prototype uses only the information supplied in the assignment data pack.
 
-## Process flow, one turn
+Customer Profiles
+Customer	Tier	Booking	Flight	Situation
+Priya Nair	Gold	SK4821X	SK-204 Delhi → Goa	Cancelled
+Arvind Kulkarni	Silver	TR1190B	SK-118 Mumbai → Bengaluru	Delayed 4 hours
+Meher Kaur	Platinum	WL7742	SK-305 Delhi → Hyderabad	Delayed 6 hours
 
-1. Customer message arrives.
-2. Intent layer returns request types + mood.
-3. Engine reads the booking and session flags.
-4. Verdicts emitted, each carrying its rule id.
-5. Actions applied, escalation tickets opened.
-6. Reply written from the verdicts.
-7. Audit entries appended.
+The prototype does not require external web information to make these decisions.
 
----
+Policy Engine
 
-## Policy matrix
+The decision engine uses the service rules and prohibited-action rules supplied in the assignment.
 
-| Customer asks for | Condition | Verdict | Rule |
-|---|---|---|---|
-| Rebooking | Flight cancelled by the airline | Execute, free | R1 |
-| Refund | Cancelled, original payment method | Execute | R1 + R3 |
-| Refund to cash / another method | Any | Escalate | P5 |
-| Meal voucher | Any delay | Execute ₹500 | R2a |
-| Lounge access | Delay over 3 hours | Execute | R2b |
-| Hotel | Delay over 5 hours | Execute, delayed hours only | R2c |
-| Hotel | Delay of 5 hours or less | Decline, offer what applies | R2c |
-| Full night's hotel | Any | Escalate | P1 |
-| Free upgrade or goodwill | Any tier, Platinum included | Escalate | P1 + R5 |
-| Move to a higher-fare flight | Voluntary change | Execute, customer pays | R4 |
-| Waive fare difference | Above ₹1,500 | Escalate | P2 |
-| Legal action or formal complaint | Any | Escalate immediately | P4 |
-| Customer's own missed flight | Any | Escalate | P3 |
+Customer Request	Condition	Decision	Rule
+Rebooking	Airline cancellation	Execute, free	R1
+Refund	Airline cancellation	Execute	R1 + R3
+Refund to cash / another method	Any	Escalate	P5
+Meal voucher	Delay	Execute ₹500	R2a
+Lounge access	Delay > 3 hours	Execute	R2b
+Hotel	Delay > 5 hours	Execute for delayed hours	R2c
+Hotel	Delay ≤ 5 hours	Decline	R2c
+Full-night hotel	Any	Escalate	P1
+Free upgrade / goodwill	Any tier	Escalate	P1 + R5
+Higher-fare flight	Voluntary change	Execute, customer pays	R4
+Fare difference waiver	Above ₹1,500	Escalate	P2
+Legal action / formal complaint	Any	Escalate immediately	P4
+Disruption outside airline responsibility	Any	Escalate	P3
+Example Customer Scenarios
+1. Priya — Cancelled Flight
 
-`R1`–`R5` are the service rules from section 3 of the data pack. `P1`–`P5` are the prohibited actions from section 4.
+Priya's Delhi → Goa flight is cancelled.
 
----
+The agent provides the two choices allowed by the cancellation policy:
 
-## Scenarios
+Free rebooking on the next available option within 24 hours
+Full refund to the original payment method
 
-**Priya Nair — Gold, SK4821X, SK-204 cancelled.** The agent offers the choice R1 gives her (free rebooking within 24 hours or a full refund) instead of choosing for her. On "furious, cash refund plus a free business upgrade": the refund is executed to the original method, the cash request escalates under P5, the upgrade escalates under P1, and Gold tier is explained as seat priority rather than goodwill under R5. Entitlements already granted are never withdrawn. If she then threatens legal action, P4 escalates immediately.
+When Priya asks for a cash refund and a free business-class upgrade:
 
-**Arvind Kulkarni — Silver, TR1190B, delayed 4h.** Voucher and lounge access applied under R2b without him having to ask. The hotel request is **declined**, not escalated — R2c starts above 5 hours and this delay is 4. Declining inside policy is desk work; escalating it would be hiding behind a supervisor.
+The eligible refund is processed according to policy
+Cash refund is escalated because the original payment method is required
+The free upgrade is escalated because it is not an available entitlement
+Her Gold status is explained as priority rebooking rather than an automatic goodwill upgrade
 
-**Meher Kaur — Platinum, WL7742, delayed 6h.** Voucher, lounge and hotel for the delayed hours applied under R2c. The full night's stay escalates under P1. The move to the higher-fare flight is allowed under R4 with the ₹2,000 difference payable by her; her refusal to pay escalates under P2 because ₹2,000 is above the ₹1,500 desk ceiling.
+When she mentions filing a formal complaint or taking legal action, the case is escalated immediately.
 
----
+2. Arvind — Four-Hour Delay
 
-## Inputs, sources and assumptions
+Arvind's flight is delayed by four hours.
 
-**Sources** — all transcribed verbatim from the assignment data pack into one object in `index.html`:
-customer profiles, booking rows, the five service rules, and the allowed/prohibited list. The three sample conversations were read for tone only and are never treated as fact or policy. Nothing else is available to the agent — no web access, no invented flight numbers, no invented amounts.
+The policy automatically provides:
 
-**Assumptions**
+₹500 meal voucher
+Lounge access
 
-- **Identity is pre-verified.** The chat opens from a booking reference, so the agent does not re-ask for the PNR. It states the reference it is working from.
-- **Delay bands are exclusive.** "More than 5 hours" excludes exactly 5, so a 4-hour delay gets voucher + lounge and no hotel.
-- **A cancellation is not a delay.** The delay compensation table does not apply to Priya's cancelled flight; R1 does.
-- **Declining is not escalating.** Escalation is reserved for the five prohibited categories. A no that cites its clause and offers the alternative is a resolution.
-- **Actions are recorded, not transacted.** There is no inventory or payment system in the data pack, so "rebooked" means a recorded action against the case, not a seat held.
+When he asks for a hotel, the request is declined because the hotel rule applies only when the delay is more than five hours.
 
----
+The agent explains the applicable benefits instead of unnecessarily escalating the case.
 
-## AI tools used
+3. Meher — Six-Hour Delay
 
-| Tool | When | What it did |
-|---|---|---|
-| **Claude (in the running agent)** | Run time | Two constrained calls per turn. One classifies the message into the request enum and reads mood; one writes the reply from verdicts it may not alter. Quick tier, no memory between calls, prompt assembled from the grounding store. |
-| **Claude (building it)** | Build time | Turned the data pack into the grounding object, drafted the rule matrix, wrote the page, and stress-tested the engine against edge phrasings of the three scenarios. |
-| **Claude artifact hosting** | Delivery | Published the prototype as a shareable link so a reviewer can try it with no install. |
+Meher's flight is delayed by six hours.
 
-**Prompt discipline.** The intent prompt can only return values from a fixed list, and anything outside it is dropped before the engine sees it. The reply prompt receives the verdicts as the only content it may communicate and is told not to add an amount, a flight, a date or a gesture. Neither prompt contains a policy the engine doesn't already enforce.
+The applicable benefits include:
 
----
+₹500 meal voucher
+Lounge access
+Hotel coverage for the delayed hours
 
-## The conversation and action record
+When she asks for a complete night's hotel stay, the additional request is escalated because it is outside the supplied entitlement.
 
-Every turn appends to three structures: the transcript, the decision list (verdict, rule id, ticket id, timestamp) and the audit trail (`session_opened`, `customer_message`, `intent_extracted`, `policy_decision`, `agent_reply`). **Export case record** writes all three to `CASE-XXXX-NNNN.json`.
+She then asks to move to another flight without paying a ₹2,000 fare difference.
 
----
+The higher-fare move itself is allowed under the voluntary-change rule, but waiving a difference above the ₹1,500 desk limit requires escalation.
 
-## Honest limits
+Inputs, Sources and Assumptions
+Inputs
 
-- Rebooking, vouchers, lounge, hotel and refunds are recorded as actions, not sent to a reservation or payments system.
-- No free-text identity verification, no multi-PNR households, no partial refunds.
-- The supervisor queue is one-way: escalations are raised with full context, but a human decision doesn't yet write back into the same case record.
-- Session state is in memory. Reloading starts a fresh case.
+The runtime uses:
 
-**Next week's version:** move the grounding object behind a policy service, put the rule matrix in versioned config so ops can change a ceiling without a deploy, and log every verdict for audit sampling.
+Customer profile
+Customer tier
+Booking reference
+Flight information
+Delay/cancellation status
+Customer message
+Previous conversation state
+Session/action state
+Sources
 
----
+The grounding data contains:
 
-## Files
+Customer profiles
+Booking records
+Service rules R1–R5
+Prohibited actions P1–P5
+₹1,500 fare-difference authority limit
 
-```
-index.html          the entire agent — grounding data, intent layer, policy engine, UI
-README.md           this file
-DEMO_SCRIPT.md      shot-by-shot plan for the demo video
-RollNo_Tamanna.pptx the 10-slide deck
-```
+The sample conversations are used as scenario demonstrations and tone references rather than as additional policy sources.
 
-Built by Tamanna · B.Tech CSE (Data Science), The NorthCap University.
+Assumptions
+Customer identity is considered pre-verified.
+The booking reference is already associated with the customer session.
+A cancellation is handled using the cancellation rules rather than delay compensation rules.
+“More than 5 hours” is treated as greater than 5 hours.
+A policy-based decline is different from an escalation.
+Actions are recorded by the prototype but are not connected to a real airline reservation or payment system.
+AI Tools Used
+
+AI tools were used during the development process to assist with implementation, debugging, testing, documentation and refinement.
+
+Tool	Stage	Usage
+Claude	Development	Assisted with implementation, debugging, rule-matrix refinement, test-case generation and UI/content iteration.
+ChatGPT	Development	Used for requirement analysis, architecture discussion, debugging guidance, documentation refinement and demo preparation.
+Vercel	Deployment	Used to deploy the final web prototype.
+GitHub	Version Control	Used for source-code management and assignment submission.
+Runtime AI Architecture
+
+The final deployed prototype is self-contained and does not require an external AI API at runtime.
+
+The runtime uses JavaScript-based intent matching, structured request types and a deterministic policy engine.
+
+AI assistance was used to build and refine the application, but the deployed prototype does not depend on an external AI provider to operate.
+
+This keeps the policy decisions predictable and prevents an AI response from inventing an entitlement, compensation amount or policy exception.
+
+Conversation and Audit Trail
+
+The application maintains a case record during the session.
+
+The record includes:
+
+Customer messages
+Extracted requests
+Policy decisions
+Rule IDs
+Actions taken
+Escalation information
+Timestamps
+Agent responses
+
+The Audit Trail tab makes the sequence of events visible to the reviewer.
+
+The Export Case Record function generates a JSON representation of the case.
+
+Example event types include:
+
+session_opened
+customer_message
+intent_extracted
+policy_decision
+agent_reply
+Handling Escalations
+
+The agent does not escalate every difficult request.
+
+There are three distinct outcomes:
+
+Execute
+
+The requested action is allowed by the supplied policy and can be recorded by the desk.
+
+Decline
+
+The request is outside the available entitlement but does not require supervisor approval.
+
+Escalate
+
+The request falls into a prohibited or authority-limited category.
+
+Examples include:
+
+Cash or non-original-method refunds
+Free upgrades or goodwill compensation
+Full-night hotel requests outside the entitlement
+Fare-difference waivers above ₹1,500
+Formal complaints or legal action
+Requests requiring an exception to policy
+
+An escalation records the relevant context but does not promise that the supervisor will approve the request.
+
+Honest Limitations
+
+This prototype demonstrates the resolution workflow but is not connected to a real airline backend.
+
+Therefore:
+
+Rebooking is recorded rather than sent to a reservation system.
+Refunds are recorded rather than processed through a payment gateway.
+Vouchers and lounge access are recorded as actions.
+Hotel arrangements are recorded rather than booked with a hotel provider.
+There is no live flight-status API.
+There is no external customer identity service.
+Session state exists only during the current browser session.
+Reloading the page starts a new case.
+The supervisor queue records escalation context but does not receive a real human response.
+Future Improvements
+
+A production version could extend the prototype with:
+
+Airline reservation-system integration
+Live flight-status APIs
+Payment/refund integration
+Real customer authentication
+Persistent case storage
+Role-based supervisor workflows
+Versioned policy configuration
+Real notification channels
+Analytics for resolution and escalation trends
+LLM-based natural-language understanding with the policy engine retained as the final authority
+Project Files
+skylink-resolution-agent/
+│
+├── index.html
+├── README.md
+└── 23csu309_Tamannafinal.pptx
+index.html
+
+Contains the complete working prototype, including:
+
+Interface
+Customer scenarios
+Intent detection
+Policy engine
+Action handling
+Escalation logic
+Conversation state
+Audit trail
+JSON export
+README.md
+
+Project documentation, architecture, policy matrix, assumptions and implementation details.
+
+23csu309_Tamannafinal.pptx
+
+Final 10-slide presentation submitted for the AIONOS assignment.
+
+Submission Links
+
+Live Prototype:
+https://skylink-resolution-agent.vercel.app/
+
+GitHub:
+https://github.com/Tamanna006/skylink-resolution-agent
+
+Demo Video:
+Paste the public Google Drive video link here.
+
+Author
+
+Tamanna Arora
+B.Tech CSE — Data Science
+The NorthCap University
+
+Developed for AIONOS Agentic AI Factory – Assignment 3
+
